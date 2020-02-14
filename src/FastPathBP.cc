@@ -98,7 +98,6 @@ void train(unsigned int pc, bool prediction, bool actual) {
 
     // accurate duplicate correction
     add_history(actual, global_hist);
-    int y = res[HISTORYLEN] + weights[i][0];
     int tmp_res[HISTORYLEN + 1] = {0};
 
     for (int j = 1; j < HASHLEN + 1; j++) {
