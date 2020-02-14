@@ -93,13 +93,30 @@ void train(unsigned int pc, bool prediction, bool actual) {
     }
     for (int j = 1; j < HISTORYLEN; j++) {
         unsigned int k = address_hist[j];
-        weights[k][j] = weights[k][j] + (signed int) (actual == spec_global_hist[HISTORYLEN + 1]/*read_history(j, spec_global_hist)*/ ? 1 : (-1));
+        weights[k][j] = weights[k][j] + (signed int) (actual == spec_global_hist[HISTORYLEN]/*read_history(j, spec_global_hist)*/ ? 1 : (-1));
     }
+
+    // accurate duplicate correction
     add_history(actual, global_hist);
+    int y = res[HISTORYLEN] + weights[i][0];
+    int tmp_res[HISTORYLEN + 1] = {0};
+
+    for (int j = 1; j < HASHLEN + 1; j++) {
+        unsigned int k = HASHLEN - j;
+        if (prediction) {
+            tmp_res[k + 1] = res[k] + weights[i][j];
+        } else {
+            tmp_res[k + 1] = res[k] - weights[i][j];
+        }
+    }
+
+    for (int i = 0; i < HASHLEN + 1; i++) {
+        res[i] = tmp_res[i]; // should also copy the first zero here right?
+    }
     if (prediction != actual) {
         for (int i = 0; i < HISTORYLEN + 1; i++) {
             spec_global_hist[i] = global_hist[i];
-            //speculative_res[i] = res[i];
+            speculative_res[i] = res[i];
         }
     }
 }
