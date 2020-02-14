@@ -9,9 +9,15 @@
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
 int weights[HASHLEN][HISTORYLEN + 1] = {{0}};
+bool spec_global_hist[HISTORYLEN + 1] = {0};
+bool global_hist[HISTORYLEN + 1] = {0};
+unsigned int address_hist[HISTORYLEN] = {0};
+/*
 unsigned char spec_global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned int address_hist[HISTORYLEN] = {0};
+ */
+
 
 FastPathBP::FastPathBP(String name, core_id_t core_id)
         : BranchPredictor(name, core_id) {
@@ -33,6 +39,7 @@ bool read_history(unsigned int index, unsigned char hist[HISTORYLEN / 8 + 1]) {
     return (bool) hist[index / 8] & (1 << (7 - (index % 8)));
 }
 
+/*
 void add_history(bool prediction, unsigned char hist[HISTORYLEN / 32 + 1]) {
     for (int i = 0; i < HISTORYLEN / 8; i++) {
         hist[i] = (hist[i] << 1) | (7 >> hist[i + 1]);
@@ -45,6 +52,13 @@ void add_history(bool prediction, unsigned char hist[HISTORYLEN / 32 + 1]) {
         hist[HISTORYLEN / 8 + 1] = (hist[HISTORYLEN / 8 + 1] << 1) | (prediction << (7 - (HISTORYLEN % 8)));
 
     }
+}
+ */
+void add_history(bool prediction, bool hist[HISTORYLEN + 1]) {
+    for(int i=0; i < HISTORYLEN; i++) {
+        hist[i] = hist[i+1];
+    }
+    hist[HISTORYLEN + 1] = prediction;
 }
 
 bool prediction(unsigned int pc) {
@@ -79,13 +93,13 @@ void train(unsigned int pc, bool prediction, bool actual) {
     }
     for (int j = 1; j < HISTORYLEN; j++) {
         unsigned int k = address_hist[j];
-        weights[k][j] = weights[k][j] + (signed int) (actual == read_history(j, spec_global_hist) ? 1 : (-1));
+        weights[k][j] = weights[k][j] + (signed int) (actual == spec_global_hist[HISTORYLEN + 1]/*read_history(j, spec_global_hist)*/ ? 1 : (-1));
     }
     add_history(actual, global_hist);
     if (prediction != actual) {
-        for (int i = 0; i < HISTORYLEN / 8 + 1; i++) {
+        for (int i = 0; i < HISTORYLEN + 1; i++) {
             spec_global_hist[i] = global_hist[i];
-            speculative_res[i] = res[i];
+            //speculative_res[i] = res[i];
         }
     }
 }
