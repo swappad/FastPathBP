@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HASHLEN 4
-#define HISTORYLEN 8
+#define HASHLEN 8
+#define HISTORYLEN 16
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
@@ -50,7 +50,6 @@ void add_history(bool prediction, unsigned char hist[HISTORYLEN / 32 + 1]) {
 bool prediction(unsigned int pc) {
     unsigned int i = pc % HASHLEN;
     int y = speculative_res[HISTORYLEN] + weights[i][0];
-    std::cout << y << std::endl;
     bool prediction = (y >= 0);
     int tmp_res[HISTORYLEN + 1] = {0};
 
@@ -75,7 +74,6 @@ bool prediction(unsigned int pc) {
 
 void train(unsigned int pc, bool prediction, bool actual) {
     unsigned int i = pc % HASHLEN;
-    unsigned int y = speculative_res[HISTORYLEN] + weights[i][0];
     if (prediction != actual) {
         weights[i][0] = weights[i][0] + (signed int) (actual ? 1 : (-1));
     }
@@ -102,8 +100,8 @@ void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
 }
 
 void print_array(unsigned int cols, unsigned int rows, int** arr) {
-    for(int row=0; row < rows; row++) {
-        for(int col=0; col < cols; col++) {
+    for(unsigned int row=0; row < rows; row++) {
+        for(unsigned int col=0; col < cols; col++) {
             printf(" %d ", arr[row][col]);
         }
         std::cout << std::endl;
