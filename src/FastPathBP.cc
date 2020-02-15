@@ -3,15 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HASHLEN 8
-#define HISTORYLEN 16
+#define HASHLEN 4
+#define HISTORYLEN 8
+#define DEBUG
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
 int weights[HASHLEN][HISTORYLEN + 1] = {{0}};
 bool spec_global_hist[HISTORYLEN + 1] = {0};
 bool global_hist[HISTORYLEN + 1] = {0};
-unsigned int address_hist[HISTORYLEN] = {0};
+unsigned int address_hist[HISTORYLEN + 1] = {0};
 /*
 unsigned char spec_global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
@@ -26,9 +27,34 @@ FastPathBP::FastPathBP(String name, core_id_t core_id)
 FastPathBP::~FastPathBP() {
 }
 
+void print_array(int cols, int rows, int arr[][HISTORYLEN + 1]) {
+    for(int row=0; row < rows; row++) {
+        for(int col=0; col < cols; col++) {
+            printf(" %d ",arr[row][col]);
+        }
+        std::cout << std::endl;
+    }
+}
+void print_array(int cols, int rows, unsigned int arr[][HISTORYLEN + 1]) {
+    for(int row=0; row < rows; row++) {
+        for(int col=0; col < cols; col++) {
+            printf(" %d ",arr[row][col]);
+        }
+        std::cout << std::endl;
+    }
+}
+void print_bool_array(int cols, int rows, bool arr[][HISTORYLEN + 1]) {
+    for(int row=0; row < rows; row++) {
+        for(int col=0; col < cols; col++) {
+			std::cout << arr[row][col];
+        }
+        std::cout << std::endl;
+    }
 
-void add_address_hist(unsigned int address, unsigned int hist[HISTORYLEN]) {
-    for (int i = 0; i < HISTORYLEN - 1; i++) {
+}
+
+void add_address_hist(int address,unsigned int hist[HISTORYLEN + 1]) {
+    for (int i = 0; i < HISTORYLEN; i++) {
         hist[i] = hist[i + 1];
     }
     hist[HISTORYLEN] = address;
@@ -58,17 +84,17 @@ void add_history(bool prediction, bool hist[HISTORYLEN + 1]) {
     for(int i=0; i < HISTORYLEN; i++) {
         hist[i] = hist[i+1];
     }
-    hist[HISTORYLEN + 1] = prediction;
+    hist[HISTORYLEN] = prediction;
 }
 
 bool prediction(unsigned int pc) {
     unsigned int i = pc % HASHLEN;
-    int y = speculative_res[HISTORYLEN] + weights[i][0];
+    int y = speculative_res[HISTORYLEN] + weights[i][0] - 300;
     bool prediction = (y >= 0);
     int tmp_res[HISTORYLEN + 1] = {0};
 
-    for (int j = 1; j < HASHLEN + 1; j++) {
-        unsigned int k = HASHLEN - j;
+    for (int j = 1; j < HISTORYLEN + 1; j++) {
+        unsigned int k = HISTORYLEN - j;
         if (prediction) {
             tmp_res[k + 1] = speculative_res[k] + weights[i][j];
         } else {
@@ -76,40 +102,48 @@ bool prediction(unsigned int pc) {
         }
     }
 
-    for (int i = 0; i < HASHLEN + 1; i++) {
+    for (int i = 0; i < HISTORYLEN + 1; i++) {
         speculative_res[i] = tmp_res[i]; // should also copy the first zero here right?
     }
 
     speculative_res[0] = 0;
     add_history(prediction, spec_global_hist);
-    add_address_hist(pc % HASHLEN, address_hist);
+    add_address_hist(i, address_hist);
     return prediction;
 }
 
 void train(unsigned int pc, bool prediction, bool actual) {
     unsigned int i = pc % HASHLEN;
     if (prediction != actual) {
-        weights[i][0] = weights[i][0] + (signed int) (actual ? 1 : (-1));
-    }
-    for (int j = 1; j < HISTORYLEN; j++) {
-        unsigned int k = address_hist[j];
-        weights[k][j] = weights[k][j] + (signed int) (actual == spec_global_hist[HISTORYLEN]/*read_history(j, spec_global_hist)*/ ? 1 : (-1));
+		if(actual) {
+        	weights[i][0] = weights[i][0] + 1;
+		} else {
+        	weights[i][0] = weights[i][0] - 1;
+		}
+		for (int j = 1; j < HISTORYLEN + 1; j++) {
+			unsigned int k = address_hist[j];
+			if(actual == spec_global_hist[j]) {
+				weights[k][j] = weights[k][j] + 1;
+			} else {
+				weights[k][j] = weights[k][j] - 1;
+			}
+		}
     }
 
     // accurate duplicate correction
     add_history(actual, global_hist);
     int tmp_res[HISTORYLEN + 1] = {0};
 
-    for (int j = 1; j < HASHLEN + 1; j++) {
-        unsigned int k = HASHLEN - j;
-        if (prediction) {
+    for (int j = 1; j < HISTORYLEN + 1; j++) {
+        unsigned int k = HISTORYLEN - j;
+        if (actual) {
             tmp_res[k + 1] = res[k] + weights[i][j];
         } else {
             tmp_res[k + 1] = res[k] - weights[i][j];
         }
     }
 
-    for (int i = 0; i < HASHLEN + 1; i++) {
+    for (int i = 0; i < HISTORYLEN + 1; i++) {
         res[i] = tmp_res[i]; // should also copy the first zero here right?
     }
     if (prediction != actual) {
@@ -126,15 +160,22 @@ bool FastPathBP::predict(IntPtr ip, IntPtr target) {
 
 void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
     train(ip, predicted, actual);
+#ifdef DEBUG
+	//print_array(HISTORYLEN + 1, 1, &speculative_res);
+	//print_array(HISTORYLEN + 1, HASHLEN, weights);
+	std::cout <<"update step" << std::endl;
+	std::cout << "pc: " << ip % HASHLEN << std::endl;
+	std::cout << "pc history: ";
+	print_array(HISTORYLEN + 1, 1, &address_hist);
+	std::cout << std::endl;
+	std::cout <<"global hist" << std::endl;
+	print_bool_array(HISTORYLEN + 1, 1, &global_hist);
+	std::cout <<"weights" << std::endl;
+	print_array(HISTORYLEN + 1, HASHLEN, weights);
+	std::cout <<"speculative results" << std::endl;
+	print_array(HISTORYLEN + 1, 1, &speculative_res);
+#endif
+	
     updateCounters(predicted, actual);
 }
 
-void print_array(unsigned int cols, unsigned int rows, int** arr) {
-    for(unsigned int row=0; row < rows; row++) {
-        for(unsigned int col=0; col < cols; col++) {
-            printf(" %d ", arr[row][col]);
-        }
-        std::cout << std::endl;
-    }
-
-}
