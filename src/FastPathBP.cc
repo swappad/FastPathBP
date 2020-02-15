@@ -4,15 +4,15 @@
 #include <stdlib.h>
 
 #define HASHLEN 32
-#define HISTORYLEN 64
+#define HISTORYLEN 32
 //#define DEBUG
 // #define DEBUG_STATS
 
-int speculative_res[HISTORYLEN + 1] = {0};
-int res[HISTORYLEN + 1] = {0};
+int speculative_res[HASHLEN][HISTORYLEN + 1] = {{0}};
+int res[HASHLEN][HISTORYLEN + 1] = {{0}};
 int weights[HASHLEN][HISTORYLEN + 1] = {{0}};
-bool spec_global_hist[HISTORYLEN + 1] = {0};
-bool global_hist[HISTORYLEN + 1] = {0};
+bool spec_global_hist[HASHLEN][HISTORYLEN + 1] = {0};
+bool global_hist[HASHLEN][HISTORYLEN + 1] = {0};
 unsigned int address_hist[HISTORYLEN + 1] = {0};
 /*
 unsigned char spec_global_hist[HISTORYLEN / 8 + 1] = {0};
@@ -72,69 +72,69 @@ void add_history(bool prediction, bool hist[HISTORYLEN + 1]) {
 }
 
 bool prediction(unsigned int pc) {
-    unsigned int i = pc % HASHLEN;
-    int y = speculative_res[HISTORYLEN] + weights[i][0];
+    unsigned int hash = pc % HASHLEN;
+    int y = speculative_res[hash][HISTORYLEN] + weights[hash][0];
     bool prediction = (y >= 0);
     int tmp_res[HISTORYLEN + 1] = {0};
 
     for (int j = 1; j < HISTORYLEN + 1; j++) {
         unsigned int k = HISTORYLEN - j;
         if (prediction) {
-            tmp_res[k + 1] = speculative_res[k] + weights[i][j];
+            tmp_res[k + 1] = speculative_res[hash][k] + weights[hash][j];
         } else {
-            tmp_res[k + 1] = speculative_res[k] - weights[i][j];
+            tmp_res[k + 1] = speculative_res[hash][k] - weights[hash][j];
         }
     }
 
     for (int i = 0; i < HISTORYLEN + 1; i++) {
-        speculative_res[i] = tmp_res[i]; 
+        speculative_res[hash][i] = tmp_res[i]; 
     }
 
-    speculative_res[0] = 0;
-    add_history(prediction, spec_global_hist);
-    add_address_hist(i, address_hist);
+    speculative_res[hash][0] = 0;
+    add_history(prediction, spec_global_hist[hash]);
+    add_address_hist(hash, address_hist);
     return prediction;
 }
 
 void train(unsigned int pc, bool prediction, bool actual) {
-    unsigned int i = pc % HASHLEN;
+    unsigned int hash = pc % HASHLEN;
     if (prediction != actual) {
 		if(actual) {
-        	weights[i][0] = weights[i][0] + 1;
+        	weights[hash][0] = weights[hash][0] + 1;
 		} else {
-        	weights[i][0] = weights[i][0] - 1;
+        	weights[hash][0] = weights[hash][0] - 1;
 		}
 		for (int j = 1; j < HISTORYLEN + 1; j++) {
 			unsigned int k = address_hist[HISTORYLEN-j];
-			if(actual == spec_global_hist[HISTORYLEN-j]) {
-				weights[k][j] = weights[k][j] + 1;
+			if(actual == spec_global_hist[hash][HISTORYLEN-j]) {
+				weights[hash][j] = weights[hash][j] + 1;
 			} else {
-				weights[k][j] = weights[k][j] - 1;
+				weights[hash][j] = weights[hash][j] - 1;
 			}
 		}
     }
 
     // accurate duplicate correction
-    add_history(actual, global_hist);
+    add_history(actual, global_hist[hash]);
     int tmp_res[HISTORYLEN + 1] = {0};
 
     for (int j = 1; j < HISTORYLEN + 1; j++) {
         unsigned int k = HISTORYLEN - j;
         if (actual) {
-            tmp_res[k + 1] = res[k] + weights[i][j];
+            tmp_res[k + 1] = res[hash][k] + weights[hash][j];
         } else {
-            tmp_res[k + 1] = res[k] - weights[i][j];
+            tmp_res[k + 1] = res[hash][k] - weights[hash][j];
         }
     }
 
     for (int i = 0; i < HISTORYLEN + 1; i++) {
-        res[i] = tmp_res[i]; // should also copy the first zero here right?
+        res[hash][i] = tmp_res[i]; // should also copy the first zero here right?
     }
     if (prediction != actual) {
         for (int i = 0; i < HISTORYLEN + 1; i++) {
 
-            spec_global_hist[i] = global_hist[i];
-            speculative_res[i] = res[i];
+            spec_global_hist[hash][i] = global_hist[hash][i];
+            speculative_res[hash][i] = res[hash][i];
         }
     }
 }
@@ -154,11 +154,11 @@ void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
 	print_array(HISTORYLEN + 1, 1, &address_hist);
 	std::cout << std::endl;
 	std::cout <<"global hist" << std::endl;
-	print_bool_array(HISTORYLEN + 1, 1, &global_hist);
+	print_bool_array(HISTORYLEN + 1, HASHLEN, global_hist);
 	std::cout <<"weights" << std::endl;
 	print_array(HISTORYLEN + 1, HASHLEN, weights);
 	std::cout <<"speculative results" << std::endl;
-	print_array(HISTORYLEN + 1, 1, &speculative_res);
+	print_array(HISTORYLEN + 1, HASHLEN, speculative_res);
 #endif
 #ifdef DEBUG_STATS
 	static int miss = 0;
