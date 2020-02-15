@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HASHLEN 4
-#define HISTORYLEN 8
-#define DEBUG
+#define HASHLEN 16
+#define HISTORYLEN 64
+//#define DEBUG
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
@@ -50,7 +50,6 @@ void print_bool_array(int cols, int rows, bool arr[][HISTORYLEN + 1]) {
         }
         std::cout << std::endl;
     }
-
 }
 
 void add_address_hist(int address,unsigned int hist[HISTORYLEN + 1]) {
@@ -60,26 +59,7 @@ void add_address_hist(int address,unsigned int hist[HISTORYLEN + 1]) {
     hist[HISTORYLEN] = address;
 }
 
-// to be tested
-bool read_history(unsigned int index, unsigned char hist[HISTORYLEN / 8 + 1]) {
-    return (bool) hist[index / 8] & (1 << (7 - (index % 8)));
-}
 
-/*
-void add_history(bool prediction, unsigned char hist[HISTORYLEN / 32 + 1]) {
-    for (int i = 0; i < HISTORYLEN / 8; i++) {
-        hist[i] = (hist[i] << 1) | (7 >> hist[i + 1]);
-    }
-    if (HISTORYLEN % 8 == 0) {
-        hist[HISTORYLEN / 8] = (hist[HISTORYLEN / 8] << 1) | prediction; // assuming that bool is 0x1 or 0x0
-
-    } else {
-        hist[HISTORYLEN / 8] = (hist[HISTORYLEN / 8] << 1) | (7 >> hist[HISTORYLEN / 8 + 1]);
-        hist[HISTORYLEN / 8 + 1] = (hist[HISTORYLEN / 8 + 1] << 1) | (prediction << (7 - (HISTORYLEN % 8)));
-
-    }
-}
- */
 void add_history(bool prediction, bool hist[HISTORYLEN + 1]) {
     for(int i=0; i < HISTORYLEN; i++) {
         hist[i] = hist[i+1];
@@ -121,8 +101,8 @@ void train(unsigned int pc, bool prediction, bool actual) {
         	weights[i][0] = weights[i][0] - 1;
 		}
 		for (int j = 1; j < HISTORYLEN + 1; j++) {
-			unsigned int k = address_hist[j];
-			if(actual == spec_global_hist[j]) {
+			unsigned int k = address_hist[HISTORYLEN-j];
+			if(actual == spec_global_hist[HISTORYLEN-j]) {
 				weights[k][j] = weights[k][j] + 1;
 			} else {
 				weights[k][j] = weights[k][j] - 1;
