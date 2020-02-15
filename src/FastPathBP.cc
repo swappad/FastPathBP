@@ -3,9 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HASHLEN 16
+#define HASHLEN 32
 #define HISTORYLEN 64
 //#define DEBUG
+// #define DEBUG_STATS
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
@@ -18,6 +19,9 @@ unsigned char spec_global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned int address_hist[HISTORYLEN] = {0};
  */
+
+int stats_counter = 0;
+
 
 
 FastPathBP::FastPathBP(String name, core_id_t core_id)
@@ -69,7 +73,7 @@ void add_history(bool prediction, bool hist[HISTORYLEN + 1]) {
 
 bool prediction(unsigned int pc) {
     unsigned int i = pc % HASHLEN;
-    int y = speculative_res[HISTORYLEN] + weights[i][0] - 300;
+    int y = speculative_res[HISTORYLEN] + weights[i][0];
     bool prediction = (y >= 0);
     int tmp_res[HISTORYLEN + 1] = {0};
 
@@ -83,7 +87,7 @@ bool prediction(unsigned int pc) {
     }
 
     for (int i = 0; i < HISTORYLEN + 1; i++) {
-        speculative_res[i] = tmp_res[i]; // should also copy the first zero here right?
+        speculative_res[i] = tmp_res[i]; 
     }
 
     speculative_res[0] = 0;
@@ -128,6 +132,7 @@ void train(unsigned int pc, bool prediction, bool actual) {
     }
     if (prediction != actual) {
         for (int i = 0; i < HISTORYLEN + 1; i++) {
+
             spec_global_hist[i] = global_hist[i];
             speculative_res[i] = res[i];
         }
@@ -155,7 +160,18 @@ void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
 	std::cout <<"speculative results" << std::endl;
 	print_array(HISTORYLEN + 1, 1, &speculative_res);
 #endif
-	
+#ifdef DEBUG_STATS
+	static int miss = 0;
+
+	if(stats_counter == 999) {
+		stats_counter = 0;
+		std::cout << ((float) miss) / 10.0 << std::endl;
+		miss = 0;
+	} else {
+		if(predicted != actual) miss ++;
+		stats_counter++;
+	}
+#endif
     updateCounters(predicted, actual);
 }
 
