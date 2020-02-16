@@ -2,11 +2,13 @@
 #include "FastPathBP.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-#define HASHLEN 32
-#define HISTORYLEN 64
+#define HASHLEN 64
+#define HISTORYLEN 32
 //#define DEBUG
-// #define DEBUG_STATS
+#define DEBUG_STATS
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
@@ -20,9 +22,8 @@ unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned int address_hist[HISTORYLEN] = {0};
  */
 
+int threshold = 14;
 int stats_counter = 0;
-
-
 
 FastPathBP::FastPathBP(String name, core_id_t core_id)
         : BranchPredictor(name, core_id) {
@@ -98,7 +99,8 @@ bool prediction(unsigned int pc) {
 
 void train(unsigned int pc, bool prediction, bool actual) {
     unsigned int i = pc % HASHLEN;
-    if (prediction != actual) {
+    int y = speculative_res[HISTORYLEN] + weights[i][0];
+    if (prediction != actual || (y>=0 && y<threshold) || (y<0 && y>threshold)) {
 		if(actual) {
         	weights[i][0] = weights[i][0] + 1;
 		} else {
@@ -143,6 +145,18 @@ bool FastPathBP::predict(IntPtr ip, IntPtr target) {
     return prediction(ip);
 }
 
+void write_stats(int x, int y) {
+	static FILE *fd = NULL;
+	if(fd == NULL) {
+		std::cout << "open new file" << std::endl;
+		if((fd = fopen("/home/krueger/sniper/prediction-stats.csv", "w")) == NULL) {
+			fprintf(stderr, "couldn't create and open prediction stat file!\n");
+			return;
+		}
+	}
+	fprintf(fd, "%d,%d\n", x,y);
+}
+
 void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
     train(ip, predicted, actual);
 #ifdef DEBUG
@@ -162,10 +176,13 @@ void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
 #endif
 #ifdef DEBUG_STATS
 	static int miss = 0;
+	static int counter = 0;
 
 	if(stats_counter == 999) {
 		stats_counter = 0;
-		std::cout << ((float) miss) / 10.0 << std::endl;
+		//std::cout << ((float) miss) / 10.0 << std::endl;
+		write_stats(counter * 1000, (float) miss / 10.0);
+		counter ++;
 		miss = 0;
 	} else {
 		if(predicted != actual) miss ++;
