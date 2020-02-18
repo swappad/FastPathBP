@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #define HASHLEN 16
-#define HISTORYLEN 8
+#define HISTORYLEN 16
 //#define DEBUG
 //#define DEBUG_STATS
 
