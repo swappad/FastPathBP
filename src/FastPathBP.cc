@@ -5,10 +5,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define HASHLEN 64
-#define HISTORYLEN 32
+#define HASHLEN 16
+#define HISTORYLEN 8
 //#define DEBUG
-#define DEBUG_STATS
+//#define DEBUG_STATS
 
 int speculative_res[HISTORYLEN + 1] = {0};
 int res[HISTORYLEN + 1] = {0};
@@ -22,7 +22,7 @@ unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
 unsigned int address_hist[HISTORYLEN] = {0};
  */
 
-int threshold = 14;
+int threshold = 1.93 * HISTORYLEN + 14;
 int stats_counter = 0;
 
 FastPathBP::FastPathBP(String name, core_id_t core_id)
@@ -99,8 +99,8 @@ bool prediction(unsigned int pc) {
 
 void train(unsigned int pc, bool prediction, bool actual) {
     unsigned int i = pc % HASHLEN;
-    int y = speculative_res[HISTORYLEN] + weights[i][0];
-    if (prediction != actual || (y>=0 && y<threshold) || (y<0 && y>threshold)) {
+    int y = res[HISTORYLEN] + weights[i][0];
+    if (prediction != actual || (y>=0 && threshold-y>0) || (y<0 && threshold+y>0)) {
 		if(actual) {
         	weights[i][0] = weights[i][0] + 1;
 		} else {
@@ -149,7 +149,7 @@ void write_stats(int x, int y) {
 	static FILE *fd = NULL;
 	if(fd == NULL) {
 		std::cout << "open new file" << std::endl;
-		if((fd = fopen("/home/krueger/sniper/prediction-stats.csv", "w")) == NULL) {
+		if((fd = fopen("/home/documents/uni-ulm/Semester6-singapore/advanced-computer-architecture/projects/project1/stats.csv", "w")) == NULL) {
 			fprintf(stderr, "couldn't create and open prediction stat file!\n");
 			return;
 		}
