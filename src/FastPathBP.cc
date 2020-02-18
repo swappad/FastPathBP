@@ -1,29 +1,6 @@
 //#include "simulator.h"
 #include "FastPathBP.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
 
-#define HASHLEN 16
-#define HISTORYLEN 16
-//#define DEBUG
-//#define DEBUG_STATS
-
-int speculative_res[HISTORYLEN + 1] = {0};
-int res[HISTORYLEN + 1] = {0};
-int weights[HASHLEN][HISTORYLEN + 1] = {{0}};
-bool spec_global_hist[HISTORYLEN + 1] = {0};
-bool global_hist[HISTORYLEN + 1] = {0};
-unsigned int address_hist[HISTORYLEN + 1] = {0};
-/*
-unsigned char spec_global_hist[HISTORYLEN / 8 + 1] = {0};
-unsigned char global_hist[HISTORYLEN / 8 + 1] = {0};
-unsigned int address_hist[HISTORYLEN] = {0};
- */
-
-int threshold = 1.93 * HISTORYLEN + 14;
-int stats_counter = 0;
 
 FastPathBP::FastPathBP(String name, core_id_t core_id)
         : BranchPredictor(name, core_id) {
@@ -176,6 +153,7 @@ void FastPathBP::update(bool predicted, bool actual, IntPtr ip, IntPtr target) {
 #endif
 #ifdef DEBUG_STATS
 	static int miss = 0;
+	static int stats_counter = 0;
 	static int counter = 0;
 
 	if(stats_counter == 999) {
