@@ -74,7 +74,7 @@ The timing variable $t$ is used to point out the chronological behavior of the a
 \end{align*}
 This can be used to derive a general term for $SR[h]$ in order to trace how the prediction outcome depends on past iterations:
 \begin{align*}
-	\Rightarrow SR[h] &= SR[h-1] + \hat{x}(t) W[i(t),1] \\
+	\Rightarrow SR[h] &= SR[h-e] + \hat{x}(t) W[i(t),1] \\
 	\iff SR[h] &= SR[h-2] + \hat{x}(t-1) W[i(t-1),2] + \hat{x}(t) W[i(t),1] \\
 	\iff SR[h] &= SR[h-3] + \hat{x}(t-2) W[i(t-2),3] + \hat{x}(t-1) W[i(t-1),2] + \hat{x}(t) W[i(t),1] \\
 	\iff SR[h] &= SR[h-4] + \hat{x}(t-3) W[i(t-3),4] + \hat{x}(t-2) W[i(t-2),3] + \dots \\% \hat{x}(t-1) W[i(t-1),2] + \hat{x}(t) W[i(t),1] 
@@ -180,7 +180,7 @@ The Pentium M Branch Predictor is more complex and combines multiple branch pred
 \end{figure}
 Whereas the One Bit branch predictor shows sufficient accuracy for the \textsf{bzip2} benchmark, but its accuracy is much worse for the other benchmarks. This drop in accuracy is due to the simple structure of this predictor. It does not have the ability to detect more complex patterns. The FPBP shows a remarkable different behavior than the two other branch predictors. It performs with superior accuracy for \textsf{astar},\textsf{bzip2} and \textsf{mcf}, but appears to have the worst accuracy for \textsf{gobmk} and \textsf{sjeng}. 
 The amount of simulated instructions varies by the fact, that the benchmarks have differant complexity and length. So, first idea was, that the FPBP just needs a minimum amount of instructions to warmup, such that weights are initialized properly.
-But the result of the \textsf{astar} benchmark refutes this. The benchmark only uses a small amount of approximately $3.9\text{M}$ instructions compared to the other benchmarks. \ref{tab:instructions}
+But the result of the \textsf{astar} benchmark refutes this. The benchmark only uses a small amount of approximately $3.9\text{M}$ instructions compared to the other benchmarks. (Table \ref{tab:instructions})
 
 \begin{table}[H]
 	\centering
@@ -189,7 +189,7 @@ But the result of the \textsf{astar} benchmark refutes this. The benchmark only 
 	\hline
 	astar &  3.9M\\
 	gobmk & 140.7M\\
-	bzip2 & B\\
+	bzip2 & 1B\\
 	mcf & 1B\\
 	sjeng & 234.4M
 \end{tabular}
